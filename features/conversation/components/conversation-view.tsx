@@ -61,7 +61,7 @@ export const ConversationView = ({ conversationId, initialMessages }: Conversati
             {messages.length === 0 ? (
                 <ChatEmpty />
             ) : (
-                <ChatMessages messages={messages} status={status} />
+                <ChatMessages conversationId={conversationId} messages={messages} status={status} />
             )}
 
             <ChatComposer

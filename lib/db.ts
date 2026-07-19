@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "./generated/prisma/client";
+import pg from "pg";
 
 
 
@@ -19,7 +20,8 @@ function createPrismaClient() {
   }
 
   
-  const adapter = new PrismaPg({ connectionString: url });
+  const pool = new pg.Pool({ connectionString: url });
+  const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
 

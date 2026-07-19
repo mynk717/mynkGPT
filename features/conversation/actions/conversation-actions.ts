@@ -132,3 +132,58 @@ export async function deleteConversation(conversationId: string) {
     revalidatePath("/");
     return { id: conversationId };
 }
+
+/**
+ * Forks a conversation from a chosen message.
+ * Copies the conversation parameters and all messages up to (and including) the chosen message.
+ * 
+ * @param conversationId - The original conversation ID.
+ * @param messageId - The ID of the message to fork from.
+ * @returns The new conversation.
+ */
+export async function forkConversation(conversationId: string, messageId: string) {
+    const user = await requireUser();
+    const original = await assertOwnsConversation(conversationId, user.id);
+
+    const messages = await prisma.message.findMany({
+        where: { conversationId },
+        orderBy: { createdAt: "asc" },
+    });
+
+    const index = messages.findIndex((m) => m.id === messageId);
+    if (index === -1) {
+        throw new Error("Message not found in conversation");
+    }
+
+    const messagesToCopy = messages.slice(0, index + 1);
+
+    const branched = await prisma.conversation.create({
+        data: {
+            userId: user.id,
+            title: `${original.title} (Forked)`,
+            model: original.model,
+            systemPrompt: original.systemPrompt,
+        },
+    });
+
+    const newMessages = messagesToCopy.map((m) => {
+        return prisma.message.create({
+            data: {
+                conversationId: branched.id,
+                role: m.role,
+                status: m.status,
+                content: m.content,
+                parts: m.parts ?? undefined,
+                metadata: m.metadata ?? undefined,
+                createdAt: m.createdAt,
+            }
+        });
+    });
+
+    await prisma.$transaction(newMessages);
+
+    revalidatePath("/");
+    revalidatePath(`/c/${branched.id}`);
+
+    return branched;
+}
